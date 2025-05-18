@@ -1,4 +1,4 @@
-# Shogun IPFS
+# Shogun IPFS 🏓 
 
 🌐 shogun-ipfs is a lightweight wrapper for IPFS storage services that provides a simplified interface for interacting with IPFS networks.
 
