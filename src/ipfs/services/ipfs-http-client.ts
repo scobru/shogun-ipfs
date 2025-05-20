@@ -61,10 +61,6 @@ export class IpfsService extends StorageService {
         throw new Error("Invalid data format: cannot parse JSON");
       }
 
-      if (!parsedData.data || !parsedData.metadata) {
-        throw new Error("Invalid backup data structure");
-      }
-
       return parsedData;
     } catch (error) {
       logger.error(`Failed to retrieve data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));

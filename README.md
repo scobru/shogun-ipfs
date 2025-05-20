@@ -1,4 +1,4 @@
-# Shogun IPFS 🏓 
+# Shogun IPFS 🏓
 
 🌐 shogun-ipfs is a lightweight wrapper for IPFS storage services that provides a simplified interface for interacting with IPFS networks.
 
@@ -75,13 +75,11 @@ if (unpinned) {
 
 ```typescript
 const config = {
-  storage: {
-    service: "IPFS-CLIENT" as const, // or "IPFS-CLIENT"
-    config: {
-      pinataJwt: process.env.PINATA_JWT || "",
-      pinataGateway: process.env.PINATA_GATEWAY || "",
-      // For IPFS-CLIENT: url: "http://localhost:5001"
-    },
+  service: "IPFS-CLIENT" as const, // or "IPFS-CLIENT"
+  config: {
+    pinataJwt: process.env.PINATA_JWT || "",
+    pinataGateway: process.env.PINATA_GATEWAY || "",
+    // For IPFS-CLIENT: url: "http://localhost:5001"
   },
 };
 
@@ -99,12 +97,10 @@ Currently supported:
 
 ```typescript
 const config = {
-  storage: {
-    service: "PINATA" as const,
-    config: {
-      pinataJwt: process.env.PINATA_JWT || "",
-      pinataGateway: process.env.PINATA_GATEWAY || "",
-    },
+  service: "PINATA" as const,
+  config: {
+    pinataJwt: process.env.PINATA_JWT || "",
+    pinataGateway: process.env.PINATA_GATEWAY || "",
   },
 };
 ```
@@ -113,11 +109,9 @@ const config = {
 
 ```typescript
 const config = {
-  storage: {
-    service: "IPFS-CLIENT" as const,
-    config: {
-      url: "http://localhost:5001", // Your IPFS node HTTP API endpoint
-    },
+  service: "IPFS-CLIENT" as const,
+  config: {
+    url: "http://localhost:5001", // Your IPFS node HTTP API endpoint
   },
 };
 ```
@@ -195,10 +189,12 @@ try {
 ## Best Practices
 
 1. **Rate Limiting Awareness**
+
    - The library implements rate limiting to avoid API throttling
    - For bulk operations, consider adding additional delay between calls
 
 2. **Error Handling**
+
    - Always wrap operations in try/catch blocks
    - Check for specific error types to provide better user feedback
 
