@@ -5,6 +5,7 @@ export declare abstract class StorageService extends EventEmitter {
     abstract readonly serviceInstance: any;
     abstract uploadJson(jsonData: Record<string, unknown>, options?: any): Promise<UploadOutput>;
     abstract uploadFile(filePath: string, options?: any): Promise<UploadOutput>;
+    abstract uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput>;
     abstract unpin(hash: string): Promise<boolean>;
     abstract get(hash: string): Promise<{
         data: any;

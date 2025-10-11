@@ -1,5 +1,5 @@
 
-export type ShogunIpfsServices = "PINATA" | "IPFS-CLIENT";
+export type ShogunIpfsServices = "PINATA" | "IPFS-CLIENT" | "CUSTOM";
 
 export interface PinataServiceConfig {
   pinataJwt: string;
@@ -10,6 +10,11 @@ export interface PinataServiceConfig {
 export interface IpfsServiceConfig {
   url: string;
   apiKey?: string;
+}
+
+export interface CustomGatewayConfig {
+  url: string;
+  token?: string;
 }
 
 // Re-export the abstract service for backward compatibility
@@ -23,7 +28,7 @@ export interface StorageServiceWithMetadata {
 
 export type ShogunIpfsConfig = {
   service: ShogunIpfsServices;
-  config: PinataServiceConfig | IpfsServiceConfig;
+  config: PinataServiceConfig | IpfsServiceConfig | CustomGatewayConfig;
 };
 
 export interface UploadOutput {

@@ -22,6 +22,7 @@ export declare class PinataService extends StorageService {
     getEndpoint(): string;
     unpin(hash: string): Promise<boolean>;
     uploadJson(jsonData: Record<string, unknown>, options?: PinataOptions): Promise<UploadOutput>;
+    uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput>;
     uploadFile(path: string, options?: PinataOptions): Promise<UploadOutput>;
     getMetadata(hash: string): Promise<any>;
     isPinned(hash: string): Promise<boolean>;

@@ -53,9 +53,6 @@ class IpfsService extends base_storage_1.StorageService {
             catch (e) {
                 throw new Error("Invalid data format: cannot parse JSON");
             }
-            if (!parsedData.data || !parsedData.metadata) {
-                throw new Error("Invalid backup data structure");
-            }
             return parsedData;
         }
         catch (error) {
@@ -84,6 +81,27 @@ class IpfsService extends base_storage_1.StorageService {
         }
     }
     /**
+     * Upload a Buffer to IPFS
+     */
+    async uploadBuffer(buffer, options) {
+        try {
+            await this.enforceRateLimit();
+            const result = await this.serviceInstance.add(buffer);
+            return {
+                id: result.cid.toString(),
+                metadata: {
+                    timestamp: Date.now(),
+                    size: buffer.length,
+                    type: "buffer",
+                },
+            };
+        }
+        catch (error) {
+            logger_1.logger.error('Buffer upload failed', error instanceof Error ? error : new Error(String(error)));
+            throw error;
+        }
+    }
+    /**
      * Carica un file su IPFS
      * @param filePath - Percorso del file da caricare
      * @param options - Opzioni aggiuntive (nome, metadati, ecc.)
@@ -92,16 +110,7 @@ class IpfsService extends base_storage_1.StorageService {
     async uploadFile(filePath) {
         try {
             const content = await fs_1.default.promises.readFile(filePath);
-            await this.enforceRateLimit();
-            const result = await this.serviceInstance.add(content);
-            return {
-                id: result.cid.toString(),
-                metadata: {
-                    timestamp: Date.now(),
-                    size: content.length,
-                    type: "file",
-                },
-            };
+            return this.uploadBuffer(content, { filename: filePath.split('/').pop() });
         }
         catch (error) {
             logger_1.logger.error(`File upload failed for ${filePath}`, error instanceof Error ? error : new Error(String(error)));

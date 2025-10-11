@@ -91,6 +91,28 @@ export class IpfsService extends StorageService {
   }
 
   /**
+   * Upload a Buffer to IPFS
+   */
+  public async uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput> {
+    try {
+      await this.enforceRateLimit();
+      const result = await this.serviceInstance.add(buffer);
+      
+      return {
+        id: result.cid.toString(),
+        metadata: {
+          timestamp: Date.now(),
+          size: buffer.length,
+          type: "buffer",
+        },
+      };
+    } catch (error) {
+      logger.error('Buffer upload failed', error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  /**
    * Carica un file su IPFS
    * @param filePath - Percorso del file da caricare
    * @param options - Opzioni aggiuntive (nome, metadati, ecc.)
@@ -99,18 +121,7 @@ export class IpfsService extends StorageService {
   public async uploadFile(filePath: string): Promise<UploadOutput> {
     try {
       const content = await fs.promises.readFile(filePath);
-      
-      await this.enforceRateLimit();
-      const result = await this.serviceInstance.add(content);
-      
-      return {
-        id: result.cid.toString(),
-        metadata: {
-          timestamp: Date.now(),
-          size: content.length,
-          type: "file",
-        },
-      };
+      return this.uploadBuffer(content, { filename: filePath.split('/').pop() });
     } catch (error) {
       logger.error(`File upload failed for ${filePath}`, error instanceof Error ? error : new Error(String(error)));
       throw error;

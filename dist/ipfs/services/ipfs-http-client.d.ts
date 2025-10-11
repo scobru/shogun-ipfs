@@ -17,6 +17,10 @@ export declare class IpfsService extends StorageService {
     }>;
     uploadJson(jsonData: Record<string, unknown>): Promise<UploadOutput>;
     /**
+     * Upload a Buffer to IPFS
+     */
+    uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput>;
+    /**
      * Carica un file su IPFS
      * @param filePath - Percorso del file da caricare
      * @param options - Opzioni aggiuntive (nome, metadati, ecc.)

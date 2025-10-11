@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ShogunIpfs = ShogunIpfs;
 const pinata_1 = require("./services/pinata");
 const ipfs_http_client_1 = require("./services/ipfs-http-client");
+const custom_gateway_1 = require("./services/custom-gateway");
 function ShogunIpfs(options) {
     switch (options.service) {
         case "PINATA": {
@@ -18,6 +19,13 @@ function ShogunIpfs(options) {
                 throw new Error('Configurazione IPFS non valida: richiesto url');
             }
             return new ipfs_http_client_1.IpfsService(ipfsConfig);
+        }
+        case "CUSTOM": {
+            const customConfig = options.config;
+            if (!customConfig.url) {
+                throw new Error('Configurazione Custom Gateway non valida: richiesto url');
+            }
+            return new custom_gateway_1.CustomGatewayService(customConfig);
         }
         default:
             throw new Error(`Servizio di storage non supportato: ${options.service}`);

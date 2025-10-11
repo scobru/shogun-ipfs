@@ -1,6 +1,7 @@
-import {  ShogunIpfsConfig, PinataServiceConfig, IpfsServiceConfig } from "./types";
+import {  ShogunIpfsConfig, PinataServiceConfig, IpfsServiceConfig, CustomGatewayConfig } from "./types";
 import { PinataService } from "./services/pinata";
 import { IpfsService } from "./services/ipfs-http-client";
+import { CustomGatewayService } from "./services/custom-gateway";
 import { StorageService } from './services/base-storage';
 
 export function ShogunIpfs(options: ShogunIpfsConfig): StorageService {
@@ -19,6 +20,14 @@ export function ShogunIpfs(options: ShogunIpfsConfig): StorageService {
         throw new Error('Configurazione IPFS non valida: richiesto url');
       }
       return new IpfsService(ipfsConfig);
+    }
+
+    case "CUSTOM": {
+      const customConfig = options.config as CustomGatewayConfig;
+      if (!customConfig.url) {
+        throw new Error('Configurazione Custom Gateway non valida: richiesto url');
+      }
+      return new CustomGatewayService(customConfig);
     }
 
     default:

@@ -158,11 +158,10 @@ class PinataService extends base_storage_1.StorageService {
             throw error;
         }
     }
-    async uploadFile(path, options) {
+    async uploadBuffer(buffer, options) {
         try {
-            const fileContent = await fs_1.default.promises.readFile(path);
-            const fileName = path.split("/").pop() || "file";
-            const file = new File([fileContent], fileName, { type: "application/octet-stream" });
+            const fileName = options?.filename || "file.bin";
+            const file = new File([buffer], fileName, { type: "application/octet-stream" });
             await this.enforceRateLimit();
             const response = await this.serviceInstance.upload.file(file, {
                 metadata: options?.pinataMetadata,
@@ -171,10 +170,22 @@ class PinataService extends base_storage_1.StorageService {
                 id: response.IpfsHash,
                 metadata: {
                     timestamp: Date.now(),
-                    type: "file",
+                    size: buffer.length,
+                    type: "buffer",
                     ...response,
                 },
             };
+        }
+        catch (error) {
+            logger_1.logger.error('Buffer upload failed', error instanceof Error ? error : new Error(String(error)));
+            throw error;
+        }
+    }
+    async uploadFile(path, options) {
+        try {
+            const fileContent = await fs_1.default.promises.readFile(path);
+            const fileName = path.split("/").pop() || "file";
+            return this.uploadBuffer(fileContent, { ...options, filename: fileName });
         }
         catch (error) {
             logger_1.logger.error(`File upload failed for ${path}`, error instanceof Error ? error : new Error(String(error)));
