@@ -73,7 +73,18 @@ console.log("Buffer uploaded:", bufferResult.id);
 
 // Retrieve data
 const data = await storage.get(result.id);
-console.log("Retrieved data:", data);
+console.log("Retrieved data:", data.data);
+
+// NEW: Get raw buffer (useful for images, videos, or raw binary)
+const rawBuffer = await storage.getRaw(result.id);
+console.log("Raw buffer size:", rawBuffer.length);
+
+// NEW: Get typed JSON
+interface MyData {
+  name: string;
+}
+const jsonData = await storage.getJson<MyData>(result.id);
+console.log("Retrieved JSON:", jsonData.name);
 
 // Check if content is pinned
 const isPinned = await storage.isPinned(result.id);
@@ -91,16 +102,19 @@ if (unpinned) {
 `shogun-ipfs` supports three storage providers with automatic endpoint discovery and failover:
 
 ### 📌 **PINATA** - Managed IPFS Service
+
 Managed IPFS pinning service with global CDN and automatic replication.
 
 **Best for**: Production apps, public files, guaranteed availability
 
 ### 🖥️ **IPFS-CLIENT** - Local/Remote IPFS Node
+
 Direct connection to any IPFS node via HTTP API (Kubo, js-ipfs, etc.)
 
 **Best for**: Self-hosted solutions, private networks, full control
 
 ### 🌐 **CUSTOM** - Custom Gateway/Relay
+
 Any IPFS-compatible API endpoint (Shogun Relay, Infura, custom implementations)
 
 **Best for**: Custom infrastructure, relay networks, hybrid setups
@@ -124,7 +138,7 @@ const storage = ShogunIpfs({
   service: "IPFS-CLIENT",
   config: {
     url: "http://localhost:5001", // Your IPFS node HTTP API endpoint
-    apiKey: "optional-api-key",   // Optional authentication
+    apiKey: "optional-api-key", // Optional authentication
   },
 });
 ```
@@ -161,7 +175,7 @@ console.log("JSON uploaded:", jsonResult.id);
 // Upload a buffer (NEW! Perfect for encrypted data)
 const encryptedData = Buffer.from("encrypted-content");
 const bufferResult = await storage.uploadBuffer(encryptedData, {
-  filename: "encrypted-file.bin" // Optional
+  filename: "encrypted-file.bin", // Optional
 });
 console.log("Buffer uploaded:", bufferResult.id);
 
@@ -173,10 +187,18 @@ console.log("File uploaded:", fileResult.id);
 ### Retrieval Operations
 
 ```typescript
-// Get data by hash
+// Get data by hash (returns { data, metadata })
+// Now handles both JSON and binary data automatically!
 const result = await storage.get("QmHash...");
 console.log("Retrieved data:", result.data);
 console.log("Metadata:", result.metadata);
+
+// Get raw buffer directly (perfect for non-JSON files)
+const buffer = await storage.getRaw("QmHash...");
+console.log("Raw size:", buffer.length);
+
+// Get typed JSON directly
+const data = await storage.getJson<MyType>("QmHash...");
 
 // Get metadata only
 const metadata = await storage.getMetadata("QmHash...");
@@ -245,7 +267,7 @@ const encryptedData = await SEA.encrypt(fileData, userKey);
 const encryptedBuffer = Buffer.from(encryptedData);
 
 const result = await ipfsStorage.uploadBuffer(encryptedBuffer, {
-  filename: "encrypted-file.bin"
+  filename: "encrypted-file.bin",
 });
 
 console.log("Encrypted file uploaded:", result.id);
@@ -260,11 +282,13 @@ const decrypted = await SEA.decrypt(downloaded.data, userKey);
 When using `CUSTOM` service, shogun-ipfs automatically tries multiple endpoints:
 
 **Upload attempts** (in order):
+
 1. `/upload` - Relay format (Shogun Relay, custom implementations)
 2. `/api/v0/add` - Standard IPFS API
 3. `/add` - Simplified format
 
 **Download attempts** (in order):
+
 1. `/content/{hash}` - Relay format with metadata
 2. `/ipfs/{hash}` - Standard gateway format
 3. `/api/v0/cat?arg={hash}` - IPFS API format
@@ -283,15 +307,17 @@ interface StorageService {
   uploadJson(jsonData: Record<string, unknown>, options?: any): Promise<UploadOutput>;
   uploadFile(filePath: string, options?: any): Promise<UploadOutput>;
   uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput>;
-  
+
   // Download operations
   get(hash: string): Promise<{ data: any; metadata: any }>;
+  getRaw(hash: string): Promise<Buffer>;
+  getJson<T>(hash: string): Promise<T>;
   getMetadata(hash: string): Promise<any>;
-  
+
   // Pin management
   isPinned(hash: string): Promise<boolean>;
   unpin(hash: string): Promise<boolean>;
-  
+
   // Utility
   getEndpoint?(): string;
 }
@@ -301,8 +327,8 @@ interface StorageService {
 
 ```typescript
 interface UploadOutput {
-  id: string;              // IPFS hash (CID)
-  url?: string;            // Optional URL to access the content
+  id: string; // IPFS hash (CID)
+  url?: string; // Optional URL to access the content
   metadata?: Record<string, any>; // Additional metadata (timestamp, size, etc.)
 }
 ```
