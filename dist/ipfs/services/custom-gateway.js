@@ -133,9 +133,9 @@ class CustomGatewayService extends base_storage_1.StorageService {
         return this.uploadBuffer(buffer, { ...options, filename: 'data.json' });
     }
     /**
-     * Download data from the custom gateway
+     * Download raw data from the custom gateway
      */
-    async get(hash) {
+    async getRaw(hash) {
         await this.enforceRateLimit();
         const { URL } = require('url');
         // Try multiple endpoints
@@ -160,13 +160,13 @@ class CustomGatewayService extends base_storage_1.StorageService {
                     options.headers['Authorization'] = `Bearer ${this.token}`;
                     options.headers['token'] = this.token;
                 }
-                const data = await new Promise((resolve, reject) => {
+                const buffer = await new Promise((resolve, reject) => {
                     const request = protocol.request(options, (response) => {
-                        let data = '';
-                        response.on('data', (chunk) => data += chunk);
+                        const chunks = [];
+                        response.on('data', (chunk) => chunks.push(chunk));
                         response.on('end', () => {
                             if (response.statusCode === 200) {
-                                resolve(data);
+                                resolve(Buffer.concat(chunks));
                             }
                             else {
                                 reject(new Error(`Download failed (${response.statusCode})`));
@@ -177,27 +177,7 @@ class CustomGatewayService extends base_storage_1.StorageService {
                     request.end();
                 });
                 logger_1.logger.info(`Download successful via ${endpoint}`);
-                // Try to parse as JSON
-                try {
-                    const parsed = JSON.parse(data);
-                    return {
-                        data: parsed,
-                        metadata: {
-                            timestamp: Date.now(),
-                            type: "json"
-                        }
-                    };
-                }
-                catch {
-                    // Return as raw data
-                    return {
-                        data: data,
-                        metadata: {
-                            timestamp: Date.now(),
-                            type: "raw"
-                        }
-                    };
-                }
+                return buffer;
             }
             catch (error) {
                 logger_1.logger.warn(`${endpoint} failed, trying next...`);
@@ -207,6 +187,51 @@ class CustomGatewayService extends base_storage_1.StorageService {
             }
         }
         throw new Error('All download endpoints failed');
+    }
+    /**
+     * Download JSON data from the custom gateway
+     */
+    async getJson(hash) {
+        const buffer = await this.getRaw(hash);
+        try {
+            return JSON.parse(buffer.toString());
+        }
+        catch (e) {
+            throw new Error(`Failed to parse JSON for CID ${hash}: ${e instanceof Error ? e.message : 'Invalid JSON'}`);
+        }
+    }
+    /**
+     * Download data from the custom gateway (legacy wrapper)
+     */
+    async get(hash) {
+        try {
+            const buffer = await this.getRaw(hash);
+            const str = buffer.toString();
+            try {
+                const parsed = JSON.parse(str);
+                return {
+                    data: parsed,
+                    metadata: {
+                        timestamp: Date.now(),
+                        type: "json"
+                    }
+                };
+            }
+            catch {
+                // Return as raw data
+                return {
+                    data: buffer,
+                    metadata: {
+                        timestamp: Date.now(),
+                        type: "raw"
+                    }
+                };
+            }
+        }
+        catch (error) {
+            logger_1.logger.error(`Failed to retrieve data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));
+            throw error;
+        }
     }
     /**
      * Unpin a hash from the custom gateway

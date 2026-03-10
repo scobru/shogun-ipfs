@@ -34,7 +34,7 @@ class IpfsService extends base_storage_1.StorageService {
     getEndpoint() {
         return this.gateway;
     }
-    async get(hash) {
+    async getRaw(hash) {
         try {
             if (!hash || typeof hash !== "string") {
                 throw new Error("Invalid hash");
@@ -44,16 +44,42 @@ class IpfsService extends base_storage_1.StorageService {
             for await (const chunk of this.serviceInstance.cat(hash)) {
                 chunks.push(chunk);
             }
-            const data = Buffer.concat(chunks);
+            return Buffer.concat(chunks);
+        }
+        catch (error) {
+            logger_1.logger.error(`Failed to retrieve raw data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));
+            throw error;
+        }
+    }
+    async getJson(hash) {
+        const data = await this.getRaw(hash);
+        try {
+            return JSON.parse(data.toString());
+        }
+        catch (e) {
+            throw new Error(`Failed to parse JSON for CID ${hash}: ${e instanceof Error ? e.message : 'Invalid JSON'}`);
+        }
+    }
+    async get(hash) {
+        try {
+            const data = await this.getRaw(hash);
             const str = data.toString();
-            let parsedData;
             try {
-                parsedData = JSON.parse(str);
+                const parsedData = JSON.parse(str);
+                return parsedData;
             }
             catch (e) {
-                throw new Error("Invalid data format: cannot parse JSON");
+                // Backward compatibility: if it's not JSON, return the raw data and basic metadata
+                logger_1.logger.warn(`Data for CID ${hash} is not JSON, returning raw buffer`);
+                return {
+                    data: data,
+                    metadata: {
+                        timestamp: Date.now(),
+                        type: "raw",
+                        size: data.length
+                    }
+                };
             }
-            return parsedData;
         }
         catch (error) {
             logger_1.logger.error(`Failed to retrieve data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));

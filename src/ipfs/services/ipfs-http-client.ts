@@ -27,12 +27,12 @@ export class IpfsService extends StorageService {
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
     const elapsed = now - this.lastRequestTime;
-    
+
     if (elapsed < this.rateLimitMs) {
       const delay = this.rateLimitMs - elapsed;
       await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
@@ -40,7 +40,7 @@ export class IpfsService extends StorageService {
     return this.gateway;
   }
 
-  public async get(hash: string): Promise<{ data: any; metadata: any }> {
+  public async getRaw(hash: string): Promise<Buffer> {
     try {
       if (!hash || typeof hash !== "string") {
         throw new Error("Invalid hash");
@@ -51,17 +51,42 @@ export class IpfsService extends StorageService {
       for await (const chunk of this.serviceInstance.cat(hash)) {
         chunks.push(chunk);
       }
-      const data = Buffer.concat(chunks);
+      return Buffer.concat(chunks);
+    } catch (error) {
+      logger.error(`Failed to retrieve raw data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  public async getJson<T>(hash: string): Promise<T> {
+    const data = await this.getRaw(hash);
+    try {
+      return JSON.parse(data.toString()) as T;
+    } catch (e) {
+      throw new Error(`Failed to parse JSON for CID ${hash}: ${e instanceof Error ? e.message : 'Invalid JSON'}`);
+    }
+  }
+
+  public async get(hash: string): Promise<{ data: any; metadata: any }> {
+    try {
+      const data = await this.getRaw(hash);
       const str = data.toString();
 
-      let parsedData;
       try {
-        parsedData = JSON.parse(str);
+        const parsedData = JSON.parse(str);
+        return parsedData;
       } catch (e) {
-        throw new Error("Invalid data format: cannot parse JSON");
+        // Backward compatibility: if it's not JSON, return the raw data and basic metadata
+        logger.warn(`Data for CID ${hash} is not JSON, returning raw buffer`);
+        return {
+          data: data,
+          metadata: {
+            timestamp: Date.now(),
+            type: "raw",
+            size: data.length
+          }
+        };
       }
-
-      return parsedData;
     } catch (error) {
       logger.error(`Failed to retrieve data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -72,10 +97,10 @@ export class IpfsService extends StorageService {
     try {
       const content = JSON.stringify(jsonData);
       const buffer = Buffer.from(content);
-      
+
       await this.enforceRateLimit();
       const result = await this.serviceInstance.add(buffer);
-      
+
       return {
         id: result.cid.toString(),
         metadata: {
@@ -97,7 +122,7 @@ export class IpfsService extends StorageService {
     try {
       await this.enforceRateLimit();
       const result = await this.serviceInstance.add(buffer);
-      
+
       return {
         id: result.cid.toString(),
         metadata: {
@@ -134,10 +159,10 @@ export class IpfsService extends StorageService {
       if (!hash || typeof hash !== "string") {
         throw new Error("Invalid hash");
       }
-      
+
       await this.enforceRateLimit();
       const stat = await this.serviceInstance.files.stat(`/ipfs/${hash}`);
-      
+
       return {
         size: stat.size,
         cumulativeSize: stat.cumulativeSize,
@@ -155,16 +180,16 @@ export class IpfsService extends StorageService {
       if (!hash || typeof hash !== "string") {
         return false;
       }
-      
+
       await this.enforceRateLimit();
       const pins = await this.serviceInstance.pin.ls({ paths: [hash] });
-      
+
       for await (const pin of pins) {
         if (pin.cid.toString() === hash) {
           return true;
         }
       }
-      
+
       return false;
     } catch (error) {
       logger.warn(`isPinned check failed for ${hash}`, error instanceof Error ? error : new Error(String(error)));
@@ -177,15 +202,15 @@ export class IpfsService extends StorageService {
       if (!hash || typeof hash !== "string") {
         return false;
       }
-      
+
       const isPinnedBefore = await this.isPinned(hash);
       if (!isPinnedBefore) {
         return false;
       }
-      
+
       await this.enforceRateLimit();
       await this.serviceInstance.pin.rm(hash);
-      
+
       return true;
     } catch (error) {
       logger.error(`Failed to unpin ${hash}`, error instanceof Error ? error : new Error(String(error)));
@@ -197,10 +222,10 @@ export class IpfsService extends StorageService {
     try {
       if (!hash || typeof hash !== "string") {
         return false;
-      } 
+      }
 
       await this.enforceRateLimit();
-      const pinned = await this.serviceInstance.pin.add(hash , {
+      const pinned = await this.serviceInstance.pin.add(hash, {
         headers: {
           "Authorization": `Bearer ${this.apiKey}`
         }

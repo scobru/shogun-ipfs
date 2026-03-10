@@ -11,6 +11,8 @@ export declare class IpfsService extends StorageService {
     constructor(config: IpfsServiceConfig);
     private enforceRateLimit;
     getEndpoint(): string;
+    getRaw(hash: string): Promise<Buffer>;
+    getJson<T>(hash: string): Promise<T>;
     get(hash: string): Promise<{
         data: any;
         metadata: any;

@@ -15,6 +15,8 @@ export declare class PinataService extends StorageService {
     private rateLimitMs;
     constructor(config: PinataServiceConfig);
     private enforceRateLimit;
+    getRaw(hash: string): Promise<Buffer>;
+    getJson<T>(hash: string): Promise<T>;
     get(hash: string): Promise<{
         data: any;
         metadata: any;

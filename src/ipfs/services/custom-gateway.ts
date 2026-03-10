@@ -17,7 +17,7 @@ export class CustomGatewayService extends StorageService {
 
   constructor(config: CustomGatewayConfig) {
     super();
-    
+
     if (!config.url) {
       throw new Error("Invalid or missing Custom Gateway URL");
     }
@@ -30,12 +30,12 @@ export class CustomGatewayService extends StorageService {
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
     const elapsed = now - this.lastRequestTime;
-    
+
     if (elapsed < this.rateLimitMs) {
       const delay = this.rateLimitMs - elapsed;
       await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
@@ -48,20 +48,20 @@ export class CustomGatewayService extends StorageService {
    */
   public async uploadBuffer(buffer: Buffer, options?: any): Promise<UploadOutput> {
     await this.enforceRateLimit();
-    
+
     const FormData = require("form-data");
     const { URL } = require('url');
-    
+
     const filename = options?.filename || "file.bin";
     const formData = new FormData();
-    formData.append("file", buffer, { 
+    formData.append("file", buffer, {
       filename: filename,
       contentType: "application/octet-stream"
     });
 
     // Try multiple endpoints in order
     const endpoints = ['/upload', '/api/v0/add', '/add'];
-    
+
     for (const endpoint of endpoints) {
       try {
         const url = `${this.serviceBaseUrl}${endpoint}`;
@@ -92,7 +92,7 @@ export class CustomGatewayService extends StorageService {
                 try {
                   const json = JSON.parse(data);
                   const hash = json.hash || json.Hash || json.cid || json.IpfsHash || json.file?.hash;
-                  
+
                   if (hash) {
                     resolve({
                       id: hash,
@@ -120,7 +120,7 @@ export class CustomGatewayService extends StorageService {
 
         logger.info(`Upload successful via ${endpoint}`);
         return result;
-        
+
       } catch (error) {
         logger.warn(`${endpoint} failed, trying next...`);
         if (endpoint === endpoints[endpoints.length - 1]) {
@@ -150,13 +150,13 @@ export class CustomGatewayService extends StorageService {
   }
 
   /**
-   * Download data from the custom gateway
+   * Download raw data from the custom gateway
    */
-  public async get(hash: string): Promise<{ data: any; metadata: any }> {
+  public async getRaw(hash: string): Promise<Buffer> {
     await this.enforceRateLimit();
-    
+
     const { URL } = require('url');
-    
+
     // Try multiple endpoints
     const endpoints = [
       `/content/${hash}`,
@@ -183,13 +183,13 @@ export class CustomGatewayService extends StorageService {
           options.headers['token'] = this.token;
         }
 
-        const data = await new Promise<string>((resolve, reject) => {
+        const buffer = await new Promise<Buffer>((resolve, reject) => {
           const request = protocol.request(options, (response) => {
-            let data = '';
-            response.on('data', (chunk) => data += chunk);
+            const chunks: Buffer[] = [];
+            response.on('data', (chunk) => chunks.push(chunk));
             response.on('end', () => {
               if (response.statusCode === 200) {
-                resolve(data);
+                resolve(Buffer.concat(chunks));
               } else {
                 reject(new Error(`Download failed (${response.statusCode})`));
               }
@@ -201,28 +201,8 @@ export class CustomGatewayService extends StorageService {
         });
 
         logger.info(`Download successful via ${endpoint}`);
-        
-        // Try to parse as JSON
-        try {
-          const parsed = JSON.parse(data);
-          return {
-            data: parsed,
-            metadata: {
-              timestamp: Date.now(),
-              type: "json"
-            }
-          };
-        } catch {
-          // Return as raw data
-          return {
-            data: data,
-            metadata: {
-              timestamp: Date.now(),
-              type: "raw"
-            }
-          };
-        }
-        
+        return buffer;
+
       } catch (error) {
         logger.warn(`${endpoint} failed, trying next...`);
         if (endpoint === endpoints[endpoints.length - 1]) {
@@ -235,13 +215,58 @@ export class CustomGatewayService extends StorageService {
   }
 
   /**
+   * Download JSON data from the custom gateway
+   */
+  public async getJson<T>(hash: string): Promise<T> {
+    const buffer = await this.getRaw(hash);
+    try {
+      return JSON.parse(buffer.toString()) as T;
+    } catch (e) {
+      throw new Error(`Failed to parse JSON for CID ${hash}: ${e instanceof Error ? e.message : 'Invalid JSON'}`);
+    }
+  }
+
+  /**
+   * Download data from the custom gateway (legacy wrapper)
+   */
+  public async get(hash: string): Promise<{ data: any; metadata: any }> {
+    try {
+      const buffer = await this.getRaw(hash);
+      const str = buffer.toString();
+
+      try {
+        const parsed = JSON.parse(str);
+        return {
+          data: parsed,
+          metadata: {
+            timestamp: Date.now(),
+            type: "json"
+          }
+        };
+      } catch {
+        // Return as raw data
+        return {
+          data: buffer,
+          metadata: {
+            timestamp: Date.now(),
+            type: "raw"
+          }
+        };
+      }
+    } catch (error) {
+      logger.error(`Failed to retrieve data for CID ${hash}`, error instanceof Error ? error : new Error(String(error)));
+      throw error;
+    }
+  }
+
+  /**
    * Unpin a hash from the custom gateway
    */
   public async unpin(hash: string): Promise<boolean> {
     await this.enforceRateLimit();
-    
+
     const { URL } = require('url');
-    
+
     // Try relay unpin endpoint
     try {
       const url = `${this.serviceBaseUrl}/pins/rm`;

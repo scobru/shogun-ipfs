@@ -26,7 +26,15 @@ export declare class CustomGatewayService extends StorageService {
      */
     uploadJson(jsonData: Record<string, unknown>, options?: any): Promise<UploadOutput>;
     /**
-     * Download data from the custom gateway
+     * Download raw data from the custom gateway
+     */
+    getRaw(hash: string): Promise<Buffer>;
+    /**
+     * Download JSON data from the custom gateway
+     */
+    getJson<T>(hash: string): Promise<T>;
+    /**
+     * Download data from the custom gateway (legacy wrapper)
      */
     get(hash: string): Promise<{
         data: any;

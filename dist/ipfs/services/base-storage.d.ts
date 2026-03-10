@@ -11,6 +11,8 @@ export declare abstract class StorageService extends EventEmitter {
         data: any;
         metadata: any;
     }>;
+    abstract getRaw(hash: string): Promise<Buffer>;
+    abstract getJson<T>(hash: string): Promise<T>;
     abstract getMetadata(hash: string): Promise<any>;
     abstract isPinned(hash: string): Promise<boolean>;
     getEndpoint?(): string;
